@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Quadrotor Core XR</title>
+<style>
+  body { margin: 0; overflow: hidden; }
+</style>
+</head>
+<body>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
+import { VRButton } from 'https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/webxr/VRButton.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050510);
+
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 100);
+camera.position.set(0, 1.6, 3);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.xr.enabled = true;
+document.body.appendChild(renderer.domElement);
+document.body.appendChild(VRButton.createButton(renderer));
+
+const light = new THREE.PointLight(0xffffff, 1.2);
+light.position.set(0, 3, 2);
+scene.add(light);
+
+// === K-STATE GEOMETRY ===
+function createKNode(kbits) {
+  const intensity = parseInt(kbits, 2) / 63;
+  const r = intensity;
+  const b = 1 - intensity;
+
+  const geometry = new THREE.TorusKnotGeometry(
+    1,
+    0.3,
+    128,
+    16,
+    2 + Math.floor(intensity * 4),
+    3
+  );
+
+  const material = new THREE.MeshStandardMaterial({
+    color: new THREE.Color(r, 0, b),
+    emissive: new THREE.Color(r * 0.5, 0, b * 0.5),
+    metalness: 0.4,
+    roughness: 0.2
+  });
+
+  return new THREE.Mesh(geometry, material);
+}
+
+const kNode = createKNode("100010");
+scene.add(kNode);
+
+// === ANIMATION LOOP ===
+renderer.setAnimationLoop(() => {
+  kNode.rotation.y += 0.002;
+  kNode.rotation.x += 0.001;
+  renderer.render(scene, camera);
+});
+</script>
+
+</body>
+</html>
