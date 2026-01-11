@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Quadrotor Core — 64 States Gallery</title>
+<style>
+body { margin: 0; background: #050510; overflow: hidden; }
+#info {
+  position: absolute; top: 10px; left: 10px;
+  color: #e0e0ff; font-family: monospace;
+  background: rgba(10,10,30,0.85);
+  padding: 10px; border-radius: 6px; z-index: 10;
+}
+</style>
+</head>
+<body>
+
+<div id="info">Hover over a node to see K-state and Hodge numbers</div>
+
+<!-- Three.js та OrbitControls (не-модульні) -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+let scene, camera, renderer, controls;
+let nodes = [];
+let raycaster = new THREE.Raycaster();
+let mouse = new THREE.Vector2();
+
+init();
+animate();
+
+function init() {
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x050510);
+
+  camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 100);
+  camera.position.set(10, 10, 15);
+
+  renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+
+  scene.add(new THREE.AmbientLight(0x444466));
+  const light = new THREE.PointLight(0xffffff, 1.2);
+  light.position.set(20,20,20);
+  scene.add(light);
+
+  // === Створюємо 64 K-стани у сітці 8x8 ===
+  const spacing = 3;
+  for(let i=0;i<64;i++){
+    const bits = i.toString(2).padStart(6,'0').split('').map(Number);
+    const {h11,h21} = computeH(bits);
+    const intensity = i/63;
+    const color = new THREE.Color(intensity,0,1-intensity);
+
+    const geo = new THREE.TorusKnotGeometry(1,0.2,100,16,h11,h21);
+    const mat = new THREE.MeshStandardMaterial({
+      color: color,
+      emissive: color.clone().multiplyScalar(0.4),
+      metalness:0.5,
+      roughness:0.25
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+
+    // Розташування сіткою
+    const row = Math.floor(i/8);
+    const col =
