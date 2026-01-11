@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<title>Quadrotor Core v1.0</title>
+<style>
+  body {
+    background: #050510;
+    color: #e0e0ff;
+    font-family: monospace;
+    margin: 0;
+    padding: 20px;
+  }
+  h1 { color: #ff6688; }
+  input {
+    font-size: 18px;
+    width: 140px;
+    text-align: center;
+  }
+  button {
+    font-size: 16px;
+    margin-left: 10px;
+  }
+  #panel {
+    display: flex;
+    gap: 30px;
+    margin-top: 20px;
+  }
+  #visual {
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: black;
+    box-shadow: 0 0 40px #000;
+    transition: all 1s ease;
+  }
+  pre {
+    background: #0b0b20;
+    padding: 15px;
+    max-width: 500px;
+    overflow-x: auto;
+  }
+</style>
+</head>
+
+<body>
+
+<h1>🛠 Quadrotor Core v1.0</h1>
+
+K-Address (6 bits):  
+<input id="kbits" value="000000" maxlength="6">
+<button onclick="runCore()">Activate</button>
+
+<div id="panel">
+  <div id="visual"></div>
+  <pre id="output"></pre>
+</div>
+
+<script>
+const dnaMap = ["A","U","G","C"];
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let osc;
+
+function bitsToInt(bits) {
+  return parseInt(bits, 2);
+}
+
+function computeDNA(bits) {
+  const X = bits.slice(4,6);
+  const Y = bits.slice(2,4);
+  const Z = bits.slice(0,2);
+  return dnaMap[parseInt(X,2)] +
+         dnaMap[parseInt(Y,2)] +
+         dnaMap[parseInt(Z,2)];
+}
+
+function computeH(bits) {
+  const h11 = 1 + (bits[0]*4 + bits[1]*2 + bits[2]*1);
+  const h21 = 1 + (bits[3]*4 + bits[4]*2 + bits[5]*1);
+  return {h11, h21};
+}
+
+function playSound(freq) {
+  if (osc) osc.stop();
+  osc = audioCtx.createOscillator();
+  osc.type = "sine";
+  osc.frequency.value = freq;
+  osc.connect(audioCtx.destination);
+  osc.start();
+}
+
+function runCore() {
+  const bits = document.getElementById("kbits").value;
+  if (!/^[01]{6}$/.test(bits)) {
+    alert("Введи рівно 6 бітів");
+    return;
+  }
+
+  const arr = bits.split("").map(b=>parseInt(b));
+  const dna = computeDNA(arr);
+  const {h11, h21} = computeH(arr);
+
+  const intensity = bitsToInt(bits) / 63;
+  const r = Math.floor(255 * intensity);
+  const b = Math.floor(255 * (1 - intensity));
+  const color = `rgb(${r},0,${b})`;
+
+  const visual = document.getElementById("visual");
+  visual.style.background = color;
+  visual.style.boxShadow = `0 0 ${20+80*intensity}px ${color}`;
+
+  const freq = 80 + (h11 + h21) * 40;
+  playSound(freq);
+
+  document.getElementById("output").textContent =
+`📡 DATA BLOCK
+K-address: ${bits}
+DNA Codon: ${dna}
+
+🧮 CYMTOR
+h₁₁ = 1 + (${arr.slice(0,3).join("")})₂ = ${h11}
+h₂₁ = 1 + (${arr.slice(3,6).join("")})₂ = ${h21}
+
+🎨 COLOR
+${color}
+
+🎵 SOUND
+Frequency ≈ ${freq.toFixed(1)} Hz
+
+🧠 ARCH-NOTE
+Стан ${bits} описує напруження між
+анімусом (1) та анімою (0),
+формуючи геометрію переходу.`;
+}
+</script>
+
+</body>
+</html>
