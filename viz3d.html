@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Quadrotor Core — 3D Visualization</title>
+<style>
+  body { margin: 0; background: #050510; overflow: hidden; }
+  #ui {
+    position: absolute;
+    top: 10px; left: 10px;
+    color: #e0e0ff;
+    font-family: monospace;
+    background: rgba(10,10,30,0.8);
+    padding: 10px;
+    border-radius: 6px;
+  }
+  input { width: 90px; font-size: 16px; }
+</style>
+</head>
+<body>
+
+<div id="ui">
+  K-state:
+  <input id="kbits" value="100010" maxlength="6">
+  <button onclick="update()">Update</button>
+  <div id="info"></div>
+</div>
+
+<script type="module">
+import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160/build/three.module.js';
+import { OrbitControls } from 'https://cdn.jsdelivr.net/npm/three@0.160/examples/jsm/controls/OrbitControls.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x050510);
+
+const camera = new THREE.PerspectiveCamera(
+  60, window.innerWidth/window.innerHeight, 0.1, 100
+);
+camera.position.set(0, 1.5, 4);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+// Lights
+scene.add(new THREE.AmbientLight(0x444466));
+const light = new THREE.PointLight(0xffffff, 1.2);
+light.position.set(3, 4, 2);
+scene.add(light);
+
+let mesh;
+
+// === CORE LOGIC ===
+function computeH(bits) {
+  return {
+    h11: 1 + (bits[0]*4 + bits[1]*2 + bits[2]),
+    h21: 1 + (bits[3]*4 + bits[4]*2 + bits[5])
+  };
+}
+
+function createGeometry(bits) {
+  const {h11, h21} = computeH(bits);
+  return new THREE.TorusKnotGeometry(
+    1,
+    0.25,
+    160,
+    24,
+    h11,
+    h21
+  );
+}
+
+function update() {
+  const k = document.getElementById("kbits").value;
+  if (!/^[01]{6}$/.test(k)) return;
+
+  const bits = k.split("").map(Number);
+  const intensity = parseInt(k, 2) / 63;
+
+  const color = new THREE.Color(intensity, 0, 1 - intensity);
+
+  if (mesh) scene.remove(mesh);
+
+  mesh = new THREE.Mesh(
+    createGeometry(bits),
+    new THREE.MeshStandardMaterial({
+      color,
+      emissive: color.clone().multiplyScalar(0.4),
+      metalness: 0.5,
+      roughness: 0.25
+    })
+  );
+
+  scene.add(mesh);
+
+  const {h11, h21} = computeH(bits);
+  document.getElementById("info").innerHTML = `
+    h₁₁=${h11}<br>
+    h₂₁=${h21}<br>
+    Intensity=${intensity.toFixed(2)}
+  `;
+}
+
+update();
+
+function animate() {
+  requestAnimationFrame(animate);
+  if (mesh) {
+    mesh.rotation.y += 0.003;
+    mesh.rotation.x += 0.0015;
+  }
+  controls.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+
+</body>
+</html>
